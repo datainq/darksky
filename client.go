@@ -13,6 +13,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"net"
 )
 
 type Client struct {
@@ -26,6 +27,28 @@ const DEFAULT_BASEURL = "https://api.darksky.net/forecast"
 func NewClient(apiKey string) *Client {
 	return &Client{
 		client:  http.DefaultClient,
+		APIKey:  apiKey,
+		BaseURL: DEFAULT_BASEURL,
+	}
+}
+
+func NewClientNoCompression(apiKey string) *Client {
+	return &Client{
+		client: &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				DialContext: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+					DualStack: true,
+				}).DialContext,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				DisableCompression:    true,
+			},
+		},
 		APIKey:  apiKey,
 		BaseURL: DEFAULT_BASEURL,
 	}
@@ -49,7 +72,7 @@ func (c *Client) GetTimeMachineForecastCtx(ctx context.Context, lat, lng string,
 	return c.GetCtx(ctx, path, args)
 }
 
-func (c *Client) Get(path string, args Arguments) (Forecast *Forecast, err error) {
+func (c *Client) Get(path string, args Arguments) (forecast *Forecast, err error) {
 	return c.GetCtx(context.Background(), path, args)
 }
 
